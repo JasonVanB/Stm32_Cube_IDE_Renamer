@@ -1,5 +1,9 @@
+from asyncio.windows_events import NULL
 import dearpygui.dearpygui as dpg
 import os
+import time
+
+pop_up_yes = NULL
 
 dpg.create_context()
 
@@ -31,12 +35,36 @@ def get_folder(sender, app_data):
         new_folder_path = folder_path.replace(old_name, new_name)
         os.rename(folder_path, new_folder_path)
     elif len(file_list) == 0:
-        print("no ioc files found")
+        show_pop_up_window("No ioc file found in folder", False)
     else:
-        print("multiple ioc files found")
-        
-    
+        show_pop_up_window("Multiple ioc files found in folder", False)
 
+# this is a ugly implementation of a generic pop up window
+# Not the biggest fan of how I handled the callback function as it requires a global variable
+# and busy waiting, but it works for this simple gui if I expand this I will need to rework this 
+def show_pop_up_window(display_text, bool_show):
+    pop_up_yes = NULL
+    dpg.configure_item("pop_up_window", show=True)
+
+    if bool_show:
+        dpg.configure_item("pop_up_window_ok", show=False)
+        dpg.configure_item("pop_up_window_yes_no", show=True)
+        while pop_up_yes == NULL:
+            time.sleep(.1)
+        return pop_up_yes
+
+    else:
+        dpg.configure_item("pop_up_window_ok", show=True)
+        dpg.configure_item("pop_up_window_yes_no", show=False)
+        return True
+
+def close_pop_up_window_yes():
+    dpg.set_value("pop_up_window_ok", False)
+    pop_up_yes = True
+
+def close_pop_up_window_no():
+    dpg.set_value("pop_up_window_ok", False)
+    pop_up_yes = False
     
 
 
@@ -47,6 +75,13 @@ with dpg.window(label="Tutorial",tag = "main_window" , width=800, height=300):
     with dpg.group(horizontal=True):
         new_name_input = dpg.add_input_text(tag = "new_name_input")
         dpg.add_button(label="Directory Selector", callback=lambda: dpg.show_item("file_dialog_id"))
+
+        with dpg.window(tag="pop_up_window", width=300, height=100, show=False):
+            dpg.add_text("test", tag="pop_up_text")
+            dpg.add_button(label="OK", tag= "pop_up_window_ok" ,callback=lambda: dpg.hide_item("pop_up_window"))
+            with dpg.group(horizontal=True, tag="pop_up_window_yes_no"):
+                dpg.add_button(label="Yes", callback=close_pop_up_window_yes)
+                dpg.add_button(label="No", callback=close_pop_up_window_no)
     
 dpg.set_primary_window("main_window", True)
 dpg.create_viewport(title='Custom Title', width=800, height=600)
